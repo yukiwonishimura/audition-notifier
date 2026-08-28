@@ -1,0 +1,17 @@
+# 環境変数（アクセストークンなどの秘密情報）
+.env
+
+# 依存関係
+node_modules/
+
+# OS / エディタ
+.DS_Store
+
+# Claude Code のローカル設定
+.claude/settings.local.json
+
+# SQLite の一時ファイル（本体 data/auditions.db はコミットして状態を保持する）
+/data/auditions.db-journal
+/data/auditions.db-wal
+/data/auditions.db-shm
+

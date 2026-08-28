@@ -1,0 +1,55 @@
+name: daily-audition-research
+
+on:
+  schedule:
+    # UTC 0:00 = JST 9:00
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "LINEに送らず内容を確認する"
+        type: boolean
+        default: false
+
+concurrency:
+  group: daily-audition-research
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Run pipeline
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+          LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
+          CLAUDE_MODEL: ${{ vars.CLAUDE_MODEL }}
+          DRY_RUN: ${{ (github.event_name == 'workflow_dispatch' && inputs.dry_run) && '1' || '' }}
+        run: node src/run.js
+
+      - name: Commit updated database
+        if: always()
+        run: |
+          if [[ -n "$(git status --porcelain data/auditions.db)" ]]; then
+            git config user.name  "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add data/auditions.db
+            git commit -m "chore: update audition DB [skip ci]"
+            git push
+          else
+            echo "DB に変更なし"
+          fi
