@@ -69,16 +69,26 @@ export function runClaude({
           )
         );
       }
-      if (parsed.is_error || parsed.subtype === "error_max_turns") {
+      const result = String(parsed.result ?? "");
+      const looksLikeAuthError =
+        /authenticate|OAuth access token is invalid|401|Invalid API key/i.test(
+          result
+        );
+      if (parsed.is_error || parsed.subtype !== "success" || looksLikeAuthError) {
         return reject(
           new Error(
-            `claude がエラー終了 (subtype=${parsed.subtype}) result=${String(
-              parsed.result
-            ).slice(0, 500)}`
+            `claude が正常終了しませんでした (exit=${code} subtype=${parsed.subtype})\n` +
+              `result: ${result.slice(0, 600)}\n` +
+              (stderr ? `stderr: ${stderr.slice(0, 400)}\n` : "") +
+              (looksLikeAuthError
+                ? "→ CLAUDE_CODE_OAUTH_TOKEN が無効です。`claude setup-token` を再実行し、" +
+                  "出力トークン（sk-ant-oat01-... で始まる長い文字列）全体を Secret に登録し直してください。" +
+                  "この機能には Claude Pro / Max のサブスクが必要です。"
+                : "")
           )
         );
       }
-      resolve({ text: String(parsed.result ?? ""), raw: parsed });
+      resolve({ text: result, raw: parsed });
     });
 
     child.stdin.write(prompt);
