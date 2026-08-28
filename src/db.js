@@ -169,8 +169,8 @@ export function stats(db) {
     .prepare(
       `SELECT
          COUNT(*) AS total,
-         SUM(CASE WHEN notified = 1 THEN 1 ELSE 0 END) AS notified,
-         SUM(CASE WHEN suspicious = 1 THEN 1 ELSE 0 END) AS suspicious
+         COALESCE(SUM(CASE WHEN notified = 1 THEN 1 ELSE 0 END), 0) AS notified,
+         COALESCE(SUM(CASE WHEN suspicious = 1 THEN 1 ELSE 0 END), 0) AS suspicious
        FROM auditions`
     )
     .get();
