@@ -164,6 +164,41 @@ export function markNotified(db, ids, now) {
   for (const id of ids) stmt.run(now, id);
 }
 
+/** "YYYY/MM/DD" 等の締切表記を Date に変換。解釈できなければ null。 */
+export function parseDeadline(s) {
+  const m = String(s || "").match(/(\d{4})[/\-.年](\d{1,2})[/\-.月](\d{1,2})/);
+  if (!m) return null;
+  const [, y, mo, d] = m;
+  const dt = new Date(Number(y), Number(mo) - 1, Number(d));
+  return Number.isNaN(dt.getTime()) ? null : dt;
+}
+
+/**
+ * 締切を過ぎている案件をDBから削除する（LLMの日付判断に頼らない確実な掃除）。
+ * 締切不明（null/解釈不能）のものは残す。
+ * @returns {number} 削除した件数
+ */
+export function deleteExpired(db, nowISO) {
+  const today = new Date(nowISO);
+  today.setHours(0, 0, 0, 0);
+
+  const rows = db
+    .prepare("SELECT id, application_deadline FROM auditions")
+    .all();
+  const expiredIds = rows
+    .filter((r) => {
+      const d = parseDeadline(r.application_deadline);
+      return d && d < today;
+    })
+    .map((r) => r.id);
+
+  if (expiredIds.length > 0) {
+    const stmt = db.prepare("DELETE FROM auditions WHERE id = ?");
+    for (const id of expiredIds) stmt.run(id);
+  }
+  return expiredIds.length;
+}
+
 export function stats(db) {
   return db
     .prepare(

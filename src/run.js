@@ -7,6 +7,7 @@ import {
   saveEvaluation,
   selectNotifiable,
   markNotified,
+  deleteExpired,
   stats,
 } from "./db.js";
 import { research } from "./research.js";
@@ -65,12 +66,16 @@ async function main() {
     }
   }
 
-  // 4. 通知対象の抽出・整形
+  // 4. 締切切れを機械的に除去（LLMの日付判断に頼らない）
+  const expired = deleteExpired(db, now);
+  if (expired > 0) log(`締切切れを削除: ${expired} 件`);
+
+  // 5. 通知対象の抽出・整形
   const notifiable = selectNotifiable(db);
   log(`通知対象(S+/S/A): ${notifiable.length} 件`);
   const messages = formatNotification(notifiable);
 
-  // 5. 送信
+  // 6. 送信
   if (cfg.dryRun) {
     log("DRY_RUN: 送信せずに内容を表示します\n");
     console.log(messages.join("\n\n========================\n\n"));
